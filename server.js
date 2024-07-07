@@ -5,7 +5,9 @@ const cors = require('cors');
 const app = express();
 const port = 5000;
 
-app.use(cors());
+app.use(cors({
+    origin: 'https://gw-beach-trip.vercel.app',
+}));
 app.use(bodyParser.json({ limit: '50mb' }));
 
 const photosFile = './photos.json';
@@ -55,5 +57,5 @@ app.delete('/photos/:id', (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server is running on https://gw-beach-trip-backend-5wjg.vercel.app`);
 });
