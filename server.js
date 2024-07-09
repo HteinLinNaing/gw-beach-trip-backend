@@ -42,7 +42,7 @@ createTable();
 app.get('/photos', async (req, res) => {
     const client = await pool.connect();
     try {
-        const result = await client.query('SELECT * FROM photos ORDER BY RANDOM() LIMIT 10');
+        const result = await client.query('SELECT * FROM photos ORDER BY RANDOM() LIMIT 5');
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: 'Error fetching photos' });
