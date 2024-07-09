@@ -1,61 +1,82 @@
+require('dotenv').config(); // Add this line at the top of the file
+
 const express = require('express');
-const fs = require('fs');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const { Pool } = require('pg');
 const app = express();
 const port = 5000;
+
+// Postgres pool setup
+const pool = new Pool({
+    connectionString: "postgres://default:8uiNrDg1xTHn@ep-floral-mouse-a1ry6nvu-pooler.ap-southeast-1.aws.neon.tech/verceldb?sslmode=require",
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 app.use(cors({
     origin: 'https://gw-beach-trip.vercel.app',
 }));
-app.use(bodyParser.json({ limit: '50mb' }));
+// app.use(bodyParser.json({ limit: '50mb' }));
 
-const photosFile = './photos.json';
+// Create table if it doesn't exist
+const createTable = async () => {
+    const client = await pool.connect();
+    try {
+        await client.query(`
+      CREATE TABLE IF NOT EXISTS photos (
+        id UUID PRIMARY KEY,
+        width INT,
+        height INT,
+        base64 TEXT
+      )
+    `);
+    } finally {
+        client.release();
+    }
+};
 
-app.get('/photos', (req, res) => {
-    fs.readFile(photosFile, (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Error reading photos file' });
-        }
-        const photos = JSON.parse(data);
-        res.json(photos);
-    });
+createTable();
+
+app.get('/photos', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT * FROM photos ORDER BY RANDOM() LIMIT 10');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching photos' });
+    } finally {
+        client.release();
+    }
 });
 
-app.post('/photos', (req, res) => {
-    const newPhoto = req.body;
-    fs.readFile(photosFile, (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Error reading photos file' });
-        }
-        const photos = JSON.parse(data);
-        photos.push(newPhoto);
-        fs.writeFile(photosFile, JSON.stringify(photos, null, 2), err => {
-            if (err) {
-                return res.status(500).json({ error: 'Error writing photos file' });
-            }
-            res.status(201).json(newPhoto);
-        });
-    });
+app.post('/photos', async (req, res) => {
+    const { id, width, height, base64 } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('INSERT INTO photos (id, width, height, base64) VALUES ($1, $2, $3, $4)', [id, width, height, base64]);
+        res.status(201).json({ id, width, height, base64 });
+    } catch (err) {
+        res.status(500).json({ error: 'Error saving photo' });
+    } finally {
+        client.release();
+    }
 });
 
-app.delete('/photos/:id', (req, res) => {
-    const photoId = req.params.id;
-    fs.readFile(photosFile, (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Error reading photos file' });
-        }
-        let photos = JSON.parse(data);
-        photos = photos.filter(photo => photo.id !== photoId);
-        fs.writeFile(photosFile, JSON.stringify(photos, null, 2), err => {
-            if (err) {
-                return res.status(500).json({ error: 'Error writing photos file' });
-            }
-            res.status(204).end();
-        });
-    });
+app.delete('/photos/:id', async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('DELETE FROM photos WHERE id = $1', [id]);
+        res.status(204).end();
+    } catch (err) {
+        res.status(500).json({ error: 'Error deleting photo' });
+    } finally {
+        client.release();
+    }
 });
 
 app.listen(port, () => {
-    console.log(`Server is running on https://gw-beach-trip-backend-5wjg.vercel.app`);
+    console.log(`Server is running on https://gw-beach-trip-backend.vercel.app`);
 });
