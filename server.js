@@ -18,7 +18,7 @@ const pool = new Pool({
 app.use(cors({
     origin: 'https://gw-beach-trip.vercel.app',
 }));
-// app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.json({ limit: '50mb' }));
 
 // Create table if it doesn't exist
 const createTable = async () => {
